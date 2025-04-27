@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.feature_selection import SelectKBest, chi2, SelectPercentile
 from sklearn.model_selection import GridSearchCV
+from imblearn.over_sampling import RandomOverSampler, SMOTEN
 import re
 
 def filter_location(location):
@@ -42,6 +43,17 @@ y = data[target]
 x_train, x_test, y_train, y_test = train_test_split(
     x, y, test_size=0.2, random_state=1009, stratify=y)
 
+ros = SMOTEN(random_state=42, k_neighbors=2, sampling_strategy={
+    "bereichsleiter" : 1000,
+    "director_business_unit_leader": 500,
+    "specialist" : 500,
+    "managing_director_small_medium_company": 100
+})
+print(y_train.value_counts())
+print("-------------------")
+x_train, y_train = ros.fit_resample(x_train, y_train)
+print(y_train.value_counts())
+
 #print(y_train.value_counts())
 
 # TFIDF to preprocessing title column , ngram_range to indicate using unigram or bigrams, unigram and bigram
@@ -61,44 +73,47 @@ x_train, x_test, y_train, y_test = train_test_split(
 # only bigrams = (6459, 686177)
 
 
-preprocessor = ColumnTransformer(transformers=[
-    ("title", TfidfVectorizer(stop_words="english"), "title"),
-    ("location", OneHotEncoder(handle_unknown='ignore'), ["location"]),
-    ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,2),
-                                    min_df=0.01, max_df = 0.95), "description"),
-    ("function", OneHotEncoder(), ["function"]),
-    ("industry", TfidfVectorizer(stop_words="english"), "industry")
-])
-
-# output = preprocessor.fit_transform(x_train)
-# print(x_train.shape)
-# print(output.shape)
-
-
-classifier = Pipeline(steps= [
-    ("preprocessor", preprocessor),
-    #("feature_selector", SelectKBest(chi2, k=300)),
-    ("feature_selector", SelectPercentile(chi2, percentile=10)),
-    ("classifier", RandomForestClassifier(random_state=42))
-])
-
-params = {
-    "feature_selector__percentile": [10, 5, 2],
-    "preprocessor__description__min_df": [0.01, 0.05],
-    "preprocessor__description__max_df": [0.95, 0.99]
-}
-
-model = GridSearchCV(
-    estimator=classifier,
-    param_grid= params,
-    scoring="f1",
-    cv=6,
-    verbose=1
-)
-model.fit(x_train, y_train)
-y_predicted = model.predict(x_test)
-
-print(classification_report(y_test, y_predicted))
+# preprocessor = ColumnTransformer(transformers=[
+#     ("title", TfidfVectorizer(stop_words="english"), "title"),
+#     ("location", OneHotEncoder(handle_unknown='ignore'), ["location"]),
+#     ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,2),
+#                                     min_df=0.01, max_df = 0.95), "description"),
+#     ("function", OneHotEncoder(), ["function"]),
+#     ("industry", TfidfVectorizer(stop_words="english"), "industry")
+# ])
+#
+# # output = preprocessor.fit_transform(x_train)
+# # print(x_train.shape)
+# # print(output.shape)
+#
+#
+# classifier = Pipeline(steps= [
+#     ("preprocessor", preprocessor),
+#     #("feature_selector", SelectKBest(chi2, k=300)),
+#     ("feature_selector", SelectPercentile(chi2, percentile=10)),
+#     ("classifier", RandomForestClassifier(random_state=42))
+# ])
+#
+# params = {
+#     "feature_selector__percentile": [10, 5, 2],
+#     "preprocessor__description__min_df": [0.01, 0.05],
+#     "preprocessor__description__max_df": [0.95, 0.99]
+# }
+#
+# model = GridSearchCV(
+#     estimator=classifier,
+#     param_grid= params,
+#     scoring="recall_weighted",
+#     cv=6,
+#     verbose=1
+# )
+# model.fit(x_train, y_train)
+# print(model.best_score_)
+# print(model.best_params_)
+#
+# y_predicted = model.predict(x_test)
+#
+# print(classification_report(y_test, y_predicted))
 
 
 # Default Random Forest ~= 850,000 features
