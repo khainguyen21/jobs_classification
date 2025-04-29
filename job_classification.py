@@ -1,5 +1,3 @@
-from struct import error
-
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -24,9 +22,11 @@ data = pd.read_excel("final_project.ods", engine="odf", dtype= str)
 
 # Apply function filter_function to location column in the dataset
 data["location"] = data["location"].apply(filter_location)
-print(len(data["industry"].unique()))
 
-# Drop 1 row containing missing values
+# print(len(data["industry"].unique()))
+# print(len(data["function"].unique()))
+
+# Dropped 1 row containing missing values
 #print(data.info())
 data = data.dropna(axis=0)
 target = "career_level"
@@ -37,35 +37,39 @@ y = data[target]
 #print(data.info())
 #print(y.value_counts())
 
-
-
-
+# stratify = y ensure that the original class proportions in a dataset are preserved in the resulting subsets.
+# This is particularly important when dealing with imbalanced datasets, where one class has significantly more samples than others.
 x_train, x_test, y_train, y_test = train_test_split(
-    x, y, test_size=0.2, random_state=1009, stratify=y)
+    x, y, test_size=0.2, random_state=42, stratify=y)
 
+
+# Balance data using over sampling, k_neighbors need to be at least 6 sample, but managing_director_small_medium_company only have 3
+# that's why we set it to k_neighbors to 2
 ros = SMOTEN(random_state=42, k_neighbors=2, sampling_strategy={
     "bereichsleiter" : 1000,
     "director_business_unit_leader": 500,
     "specialist" : 500,
     "managing_director_small_medium_company": 100
 })
+
+# Show how many total element for each class in the target column
 print(y_train.value_counts())
 print("-------------------")
+
 x_train, y_train = ros.fit_resample(x_train, y_train)
+
 print(y_train.value_counts())
 
-#print(y_train.value_counts())
-
-# TFIDF to preprocessing title column , ngram_range to indicate using unigram or bigrams, unigram and bigram
+#TFIDF to preprocessing title column , ngram_range to indicate using unigram or bigrams, unigram and bi gram
 # vectorizer = TfidfVectorizer(ngram_range=(1, 2))
 # output = vectorizer.fit_transform(x_train["title"])
+# print(output.shape)
 
-# One Hot Encoder to preprocessing location column
+#One Hot Encoder to preprocessing location column
 # encoder = OneHotEncoder()
 # output = encoder.fit_transform(x_train[["location"]])
 # print(output.shape)
-
-
+#
 # output = vectorizer.fit_transform(x_train["description"])
 # print(output.shape)
 # unigram = (6459, 67181)
@@ -73,47 +77,48 @@ print(y_train.value_counts())
 # only bigrams = (6459, 686177)
 
 
-# preprocessor = ColumnTransformer(transformers=[
-#     ("title", TfidfVectorizer(stop_words="english"), "title"),
-#     ("location", OneHotEncoder(handle_unknown='ignore'), ["location"]),
-#     ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,2),
-#                                     min_df=0.01, max_df = 0.95), "description"),
-#     ("function", OneHotEncoder(), ["function"]),
-#     ("industry", TfidfVectorizer(stop_words="english"), "industry")
-# ])
-#
-# # output = preprocessor.fit_transform(x_train)
-# # print(x_train.shape)
-# # print(output.shape)
-#
-#
-# classifier = Pipeline(steps= [
-#     ("preprocessor", preprocessor),
-#     #("feature_selector", SelectKBest(chi2, k=300)),
-#     ("feature_selector", SelectPercentile(chi2, percentile=10)),
-#     ("classifier", RandomForestClassifier(random_state=42))
-# ])
-#
-# params = {
-#     "feature_selector__percentile": [10, 5, 2],
-#     "preprocessor__description__min_df": [0.01, 0.05],
-#     "preprocessor__description__max_df": [0.95, 0.99]
-# }
-#
-# model = GridSearchCV(
-#     estimator=classifier,
-#     param_grid= params,
-#     scoring="recall_weighted",
-#     cv=6,
-#     verbose=1
-# )
-# model.fit(x_train, y_train)
-# print(model.best_score_)
-# print(model.best_params_)
-#
-# y_predicted = model.predict(x_test)
-#
-# print(classification_report(y_test, y_predicted))
+preprocessor = ColumnTransformer(transformers=[
+    ("title", TfidfVectorizer(stop_words="english"), "title"),
+    ("location", OneHotEncoder(handle_unknown='ignore'), ["location"]),
+    ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,2),
+                                    min_df=0.01, max_df = 0.95), "description"),
+    ("function", OneHotEncoder(), ["function"]),
+    ("industry", TfidfVectorizer(stop_words="english"), "industry")
+])
+
+# output = preprocessor.fit_transform(x_train)
+# print(x_train.shape)
+# print(output.shape)
+
+
+classifier = Pipeline(steps= [
+    ("preprocessor", preprocessor),
+    #("feature_selector", SelectKBest(chi2, k=300)),
+    # Filter more feature, keep those feature have big impact to target
+    ("feature_selector", SelectPercentile(chi2, percentile=10)),
+    ("classifier", RandomForestClassifier(random_state=42))
+])
+
+params = {
+    "feature_selector__percentile": [10, 5, 2],
+    # "preprocessor__description__min_df": [0.01, 0.05],
+    # "preprocessor__description__max_df": [0.95, 0.99]
+}
+
+model = GridSearchCV(
+    estimator=classifier,
+    param_grid= params,
+    scoring="recall_weighted",
+    cv=2,
+    verbose=2
+)
+model.fit(x_train, y_train)
+print(model.best_score_)
+print(model.best_params_)
+
+y_predicted = model.predict(x_test)
+print(y_test.value_counts())
+print(classification_report(y_test, y_predicted))
 
 
 # Default Random Forest ~= 850,000 features
@@ -189,3 +194,17 @@ print(y_train.value_counts())
 #                               accuracy                           0.77      1615
 #                              macro avg       0.51      0.33      0.34      1615
 #                           weighted avg       0.75      0.77      0.75      1615
+
+
+#                                         precision    recall  f1-score   support
+#
+#                         bereichsleiter       0.55      0.25      0.34       192
+#          director_business_unit_leader       1.00      0.14      0.25        14
+#                    manager_team_leader       0.66      0.69      0.67       534
+# managing_director_small_medium_company       0.00      0.00      0.00         1
+#   senior_specialist_or_project_manager       0.83      0.92      0.87       868
+#                             specialist       0.00      0.00      0.00         6
+#
+#                               accuracy                           0.75      1615
+#                              macro avg       0.51      0.33      0.36      1615
+#                           weighted avg       0.74      0.75      0.73      1615
