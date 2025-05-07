@@ -1,4 +1,5 @@
 import pandas as pd
+from lazypredict.Supervised import LazyClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import OneHotEncoder
@@ -12,6 +13,7 @@ from imblearn.over_sampling import RandomOverSampler, SMOTEN
 import re
 
 def filter_location(location):
+    # use regular expression
     result = re.findall("\,\s[A-Z]{2}", location)
     if len(result) > 0:
         return result[0][2:]
@@ -21,29 +23,33 @@ def filter_location(location):
 data = pd.read_excel("final_project.ods", engine="odf", dtype= str)
 
 # Apply function filter_function to location column in the dataset
+# To get rid of city and just keep two-Letter State Abbreviations
 data["location"] = data["location"].apply(filter_location)
 
 # print(len(data["industry"].unique()))
 # print(len(data["function"].unique()))
 
 # Dropped 1 row containing missing values
-#print(data.info())
+print(data.info())
 data = data.dropna(axis=0)
 target = "career_level"
 
 x = data.drop(target, axis=1)
 y = data[target]
 
-#print(data.info())
-#print(y.value_counts())
+print("----------After dropped missing value----------")
+print(data.info())
+print(y.value_counts())
 
 # stratify = y ensure that the original class proportions in a dataset are preserved in the resulting subsets.
 # This is particularly important when dealing with imbalanced datasets, where one class has significantly more samples than others.
 x_train, x_test, y_train, y_test = train_test_split(
     x, y, test_size=0.2, random_state=42, stratify=y)
 
+clf = LazyClassifier(verbose=0, ignore_warnings=True, custom_metric=None)
+models, predictions = clf.fit(x_train, x_test, y_train, y_test)
 
-# Balance data using over sampling, k_neighbors need to be at least 6 sample, but managing_director_small_medium_company only have 3
+# Balance data using over sampling, k_neighbors need at least 6 sample, but managing_director_small_medium_company only have 3
 # that's why we set it to k_neighbors to 2
 ros = SMOTEN(random_state=42, k_neighbors=2, sampling_strategy={
     "bereichsleiter" : 1000,
@@ -54,7 +60,7 @@ ros = SMOTEN(random_state=42, k_neighbors=2, sampling_strategy={
 
 # Show how many total element for each class in the target column
 print(y_train.value_counts())
-print("-------------------")
+print("----------After bootstrapping----------")
 
 x_train, y_train = ros.fit_resample(x_train, y_train)
 
@@ -100,7 +106,7 @@ classifier = Pipeline(steps= [
 ])
 
 params = {
-    "feature_selector__percentile": [10, 5, 2],
+    #"feature_selector__percentile": [10, 5, 2],
     # "preprocessor__description__min_df": [0.01, 0.05],
     # "preprocessor__description__max_df": [0.95, 0.99]
 }
