@@ -46,8 +46,8 @@ print(y.value_counts())
 x_train, x_test, y_train, y_test = train_test_split(
     x, y, test_size=0.2, random_state=42, stratify=y)
 
-clf = LazyClassifier(verbose=0, ignore_warnings=True, custom_metric=None)
-models, predictions = clf.fit(x_train, x_test, y_train, y_test)
+# clf = LazyClassifier(verbose=0, ignore_warnings=True, custom_metric=None)
+# models, predictions = clf.fit(x_train, x_test, y_train, y_test)
 
 # Balance data using over sampling, k_neighbors need at least 6 sample, but managing_director_small_medium_company only have 3
 # that's why we set it to k_neighbors to 2
@@ -60,8 +60,9 @@ ros = SMOTEN(random_state=42, k_neighbors=2, sampling_strategy={
 
 # Show how many total element for each class in the target column
 print(y_train.value_counts())
+print()
 print("----------After bootstrapping----------")
-
+print()
 x_train, y_train = ros.fit_resample(x_train, y_train)
 
 print(y_train.value_counts())
@@ -84,12 +85,12 @@ print(y_train.value_counts())
 
 
 preprocessor = ColumnTransformer(transformers=[
-    ("title", TfidfVectorizer(stop_words="english"), "title"),
+    ("title", TfidfVectorizer(stop_words="english", ngram_range=(1,1)), "title"),
     ("location", OneHotEncoder(handle_unknown='ignore'), ["location"]),
-    ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,2),
-                                    min_df=0.01, max_df = 0.95), "description"),
+    ("description", TfidfVectorizer(stop_words="english", ngram_range=(1,1),
+                                    min_df=0.05, max_df = 0.95), "description"),
     ("function", OneHotEncoder(), ["function"]),
-    ("industry", TfidfVectorizer(stop_words="english"), "industry")
+    ("industry", TfidfVectorizer(stop_words="english", ngram_range=(1,1)), "industry")
 ])
 
 # output = preprocessor.fit_transform(x_train)
@@ -107,20 +108,23 @@ classifier = Pipeline(steps= [
 
 params = {
     #"feature_selector__percentile": [10, 5, 2],
-    # "preprocessor__description__min_df": [0.01, 0.05],
-    # "preprocessor__description__max_df": [0.95, 0.99]
+    #"preprocessor__description__min_df": [0.01, 0.05],
+    #"preprocessor__description__max_df": [0.95, 0.99]
+    # "preprocessor__description__ngram_range" : [(1,1), (1,2), (2,2)],
+    # "preprocessor__industry__ngram_range": [(1, 1), (1, 2), (2, 2)]
+
 }
 
 model = GridSearchCV(
     estimator=classifier,
     param_grid= params,
     scoring="recall_weighted",
-    cv=2,
+    cv=3,
     verbose=2
 )
 model.fit(x_train, y_train)
-print(model.best_score_)
-print(model.best_params_)
+print("Score after completed k fold cross validation: ", model.best_score_)
+print("Best parameters after completed k fold cross validation: ", model.best_params_)
 
 y_predicted = model.predict(x_test)
 print(y_test.value_counts())
