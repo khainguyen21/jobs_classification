@@ -1,40 +1,75 @@
-# Career Level Classification Model
+# Job Career Level Classification
 
-This project implements a machine learning pipeline to classify job postings into different career levels based on features like title, description, location, function, and industry.
+This project uses machine learning to guess the **career level** of a job (for example, "specialist" or "manager") by reading the job posting.
 
-## Project Overview
+It is a practice project for learning **scikit-learn**.
 
-The goal of this project is to predict career levels from job postings using a Random Forest classifier with sophisticated text processing and feature selection techniques. The model handles imbalanced data through SMOTE oversampling and optimizes feature selection through grid search.
+## What is in this folder
 
-## Features
+| File | What it is |
+|------|------------|
+| `job_classification.py` | The main script. It loads the data, cleans it, turns text into numbers, and trains models. |
+| `final_project.ods` | The dataset (a spreadsheet file). It has about 8,000 job postings. |
+| `example.py` | A small test of the regular expression used to get the state code (like `CA`) from a location. |
+| `README.md` | This file. |
 
-- Text processing with TF-IDF for title, description, and industry columns
-- One-Hot Encoding for categorical features (location and function)
-- SMOTE oversampling to handle class imbalance
-- Feature selection using Chi-squared test
-- GridSearchCV for hyperparameter tuning
-- Random Forest classification
+## The data
 
-## Data Processing
+Each row is one job posting. It has these columns:
 
-Key data processing steps:
-1. Location filtering to extract US state codes
-2. Handling missing values
-3. Text preprocessing with English stop words removal
-4. N-gram processing (unigrams and bigrams) for description field
-5. Minimum/maximum document frequency filtering
+- `title` – the job title
+- `location` – the city and state, like `San Jose, CA`
+- `description` – the full job description
+- `function` – the job area (for example, sales or IT)
+- `industry` – the company's industry
+- `career_level` – **the answer we want to predict**
 
-## Model Pipeline
+There are 6 career levels. The data is **not balanced** — some levels have many jobs and some have very few:
 
-The classification pipeline consists of:
-1. ColumnTransformer for different preprocessing of each feature type
-2. Feature selection using SelectPercentile with chi2
-3. RandomForestClassifier
-4. GridSearchCV for parameter optimization
+| Career level | Number of jobs |
+|--------------|---------------:|
+| senior_specialist_or_project_manager | 4,338 |
+| manager_team_leader | 2,672 |
+| bereichsleiter | 960 |
+| director_business_unit_leader | 70 |
+| specialist | 30 |
+| managing_director_small_medium_company | 4 |
 
-## Installation
+## How it works
 
-To run this project, you'll need:
+1. **Load the data** from `final_project.ods`.
+2. **Clean the location.** Only keep the two-letter state code (for example, `San Jose, CA` becomes `CA`).
+3. **Remove rows with missing values.**
+4. **Split the data** into 80% for training and 20% for testing. The split keeps the same mix of career levels in both parts.
+5. **Turn text into numbers:**
+   - `title`, `description`, and `industry` use **TF-IDF** (common English words like "the" are removed).
+   - `location` and `function` use **One-Hot Encoding**.
+6. **Pick the most useful features** with `SelectKBest` and the chi-squared test.
+7. **Try many models at once** with **LazyPredict** to see which one works best.
 
-```bash
-pip install pandas scikit-learn imbalanced-learn odfpy
+## Earlier experiments
+
+Inside the script there is older code (now commented out) that tried:
+
+- A **Random Forest** model inside a scikit-learn `Pipeline`
+- **GridSearchCV** to find good settings
+- **SMOTEN** oversampling to help the small classes
+
+The best Random Forest result was about **77% accuracy**. It worked well for the big classes, but it had trouble with the very small classes because there are so few examples of them.
+
+## How to run it
+
+1. Install Python 3.11.
+2. Install the libraries:
+
+   ```bash
+   pip install pandas scikit-learn imbalanced-learn lazypredict odfpy
+   ```
+
+3. Run the script from this folder:
+
+   ```bash
+   python job_classification.py
+   ```
+
+The script prints information about the data and a table of model scores.
